@@ -1,0 +1,56 @@
+//  Smart Water Quality Monitoring using ESP8266 + TDS Sensor
+//  Sends data to Blynk App
+#define BLYNK_TEMPLATE_ID "YourTemplateID"
+#define BLYNK_TEMPLATE_NAME "Water Quality Monitor"
+#define BLYNK_AUTH_TOKEN "YourAuthToken"
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+// WiFi credentials
+char ssid[] = "Your_WiFi_Name";
+char pass[] = "Your_WiFi_Password";
+// TDS Sensor Pin
+#define TdsSensorPin A0
+float voltage = 0;
+float tdsValue = 0;
+float temperature = 25;
+BlynkTimer timer;
+void setup()
+{
+  Serial.begin(9600);
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+  timer.setInterval(2000L, sendTDSData);  // Call every 2 seconds
+}
+void loop()
+{
+  Blynk.run();
+  timer.run();
+}
+void sendTDSData()
+{
+  int analogValue = analogRead(TdsSensorPin);
+
+  voltage = analogValue * (3.3 / 1024.0);
+
+  float compensationCoefficient = 1.0 + 0.02 * (temperature - 25.0);
+  float compensationVoltage = voltage / compensationCoefficient;
+
+  tdsValue = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage
+             - 255.86 * compensationVoltage * compensationVoltage
+             + 857.39 * compensationVoltage) * 0.5;
+  Serial.print("TDS Value: ");
+  Serial.print(tdsValue);
+  Serial.println(" ppm");
+  Blynk.virtualWrite(V0, tdsValue);
+  if (tdsValue <= 300)
+  {
+    Blynk.virtualWrite(V1, "SAFE TO DRINK");
+  }
+  else if (tdsValue <= 500)
+  {
+    Blynk.virtualWrite(V1, "ACCEPTABLE");
+  }
+  else
+  {
+    Blynk.virtualWrite(V1, "NOT SAFE TO DRINK");
+  }
+}
